@@ -7,25 +7,43 @@ import android.content.Intent;
 import android.net.wifi.WifiInfo;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.widget.TextView;
 import android.net.wifi.WifiManager;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import org.w3c.dom.Text;
 
+import java.io.OutputStreamWriter;
 import java.net.NetworkInterface;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Locale;
 
 public class LogActivity extends AppCompatActivity {
+    final static private String TAG = "LogActivity";
+
     private TextView textView;
     final Handler handler = new Handler();
+    OutputStreamWriter outputStreamWriter;
 
     Runnable logger = new Runnable() {
         @Override
         public void run() {
             handler.postDelayed(logger, 1000);
-            textView.setText(getWifiStatus());
+            long seconds = System.currentTimeMillis() / 1000;
+            String rv = String.format(Locale.getDefault(), "%d %s\n", seconds, getWifiStatus());
+
+            try {
+                outputStreamWriter.write(rv);
+                outputStreamWriter.flush();
+            } catch (Exception e) {
+                rv = e.toString();
+            }
+
+            textView.setText(rv);
         }
     };
 
@@ -38,6 +56,15 @@ public class LogActivity extends AppCompatActivity {
         String message = intent.getStringExtra(MainActivity.EXTRA_MESSAGE);
 
         textView = findViewById(R.id.textView);
+        try {
+            // under /data/data/edu.soar.wifilogger/files/speed.txt
+            outputStreamWriter = new OutputStreamWriter(getApplicationContext().openFileOutput(message, Context.MODE_PRIVATE));
+        } catch (Exception e) {
+            Snackbar.make(getWindow().getDecorView(), e.toString(), Snackbar.LENGTH_LONG)
+                    .setAction("Action", null).show();
+            return;
+        }
+
         handler.postDelayed(logger, 1000);
     }
 
@@ -71,8 +98,7 @@ public class LogActivity extends AppCompatActivity {
         }
 
         WifiInfo info = wifiManager.getConnectionInfo();
-        String ifname = info.getSSID();
 
-        return ifname + "\n" + info.toString() + "\n";
+        return info.getRssi() + " " + info.getLinkSpeed();
     }
 }
