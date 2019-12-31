@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.net.wifi.WifiInfo;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.widget.TextView;
 import android.net.wifi.WifiManager;
@@ -25,9 +26,24 @@ import java.util.Locale;
 public class LogActivity extends AppCompatActivity {
     final static private String TAG = "LogActivity";
 
+    static class MessageHandler extends Handler {
+        TextView textView;
+
+        MessageHandler(TextView textView) {
+            this.textView = textView;
+        }
+
+        @Override
+        public void handleMessage (Message msg) {
+            String s = (String) msg.obj;
+            textView.append(s);
+        }
+    }
+
     private TextView textView;
-    final Handler handler = new Handler();
+    Handler handler;
     OutputStreamWriter outputStreamWriter;
+    TransferTask transferTask;
 
     Runnable logger = new Runnable() {
         @Override
@@ -65,7 +81,17 @@ public class LogActivity extends AppCompatActivity {
             return;
         }
 
-        handler.postDelayed(logger, 1000);
+        handler = new MessageHandler(textView);
+        // handler.postDelayed(logger, 1000);
+
+        transferTask = new TransferTask(handler);
+        transferTask.execute(new TransferTaskParams());
+    }
+
+    @Override
+    protected void onDestroy() {
+        transferTask.cancel(true);
+        super.onDestroy();
     }
 
     private String getNetworkInterfaces() {
